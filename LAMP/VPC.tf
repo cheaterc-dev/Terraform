@@ -85,7 +85,7 @@ resource "aws_internet_gateway" "gw" {
 
 #####################################  ELASTICK IP  ####################################
 resource "aws_eip" "nat_eip" {
-  vpc = true
+  domain = "vpc"
 }
 
 
@@ -174,3 +174,55 @@ resource "aws_route_table_association" "Private-B" {
 
 
 
+resource "aws_security_group" "db_sg" {
+  name        = "db_security_group"
+  description = "Security group for RDS DB instance"
+  vpc_id      = aws_vpc.VPC.id
+
+  ingress {
+    from_port   = 3306 # Порт MySQL
+    to_port     = 3306
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"] 
+  }
+
+  tags = {
+    Name = "RDS DB Security Group"
+  }
+}
+
+
+
+
+
+
+resource "aws_db_instance" "default" {
+  allocated_storage      = 10
+  db_name                = "wordpress"
+  engine                 = "mysql"
+  engine_version         = "8.0"
+  instance_class         = "db.t3.micro"
+  username               = "wordpres"
+  password               = "wordpres"
+  parameter_group_name   = "default.mysql8.0"
+  skip_final_snapshot    = true
+  vpc_security_group_ids = [aws_security_group.db_sg.id]
+  db_subnet_group_name   = aws_db_subnet_group.db_subnet_group.name
+}
+
+
+resource "aws_db_subnet_group" "db_subnet_group" {
+  name       = "my-db-subnet-group"
+  subnet_ids = [aws_subnet.PRIVATE-A.id, aws_subnet.PRIVATE-B.id]
+
+  tags = {
+    Name = "DB Subnet Group"
+  }
+}
